@@ -32,7 +32,7 @@ const librarianSchema = new mongoose.Schema({
     status: {
         type: String,
         enum: ['active', 'inactive'],
-        default: 'active',
+        default: 'inactive',
     },
     membershipStartDate: {
         type: Date,
