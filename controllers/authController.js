@@ -36,6 +36,8 @@ exports.register = async ( req, res) => {
             });
         }
 
+        // if (role === 'admin') return res.status(400).send("you cannot register admin here");
+
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(req.body.password, salt);
 
