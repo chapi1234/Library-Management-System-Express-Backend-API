@@ -8,22 +8,11 @@ exports.getAllAdmins = async (req, res) => {
     if (admins.length === 0) {
       res.status(400).send("No admins found");
     }
-    // Map and organize the admin data
-    const organizedAdmins = await Promise.all(
-      admins.map(async (admin) => {
-        const { password, ...rest } = admin._doc;
-        const borrowRecords = await BorrowRecord.find({ adminId: admin._id });
-        return {
-          ...rest,
-          borrowRecords,
-        };
-      })
-    );
 
     res.status(200).json({
       status: "success",
       message: "All the admins successfully fetched",
-      data: organizedAdmins,
+      data: admins,
     });
   } catch (err) {
     res.status(500).json({
