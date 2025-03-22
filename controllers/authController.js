@@ -1,9 +1,21 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 const User = require('../models/User');
 const Admin = require('../models/Admin');
 const Librarian = require('../models/Librarian');
 const { registerValidation, loginValidation } = require('../validation/authValidation');
+
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: process.env.EMAIL,
+        pass: process.env.EMAIL_PASSWORD
+    }
+});
+
 
 exports.register = async ( req, res) => {
 
@@ -41,6 +53,10 @@ exports.register = async ( req, res) => {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(req.body.password, salt);
 
+        // Generate otp
+        const otp = crypto.randomBytes(3).toString('hex');
+        const otpExpires = Date.now() + 3600000; // 1 hour
+
         if (role === 'member'){
             user = new User({
                 name,
@@ -48,7 +64,9 @@ exports.register = async ( req, res) => {
                 password: hashedPassword,
                 role,
                 gender,
-                phone
+                phone,
+                otp,
+                otpExpires
             })
         };
         if (role === 'librarian'){
@@ -58,7 +76,9 @@ exports.register = async ( req, res) => {
                 password: hashedPassword,
                 role,
                 gender,
-                phone
+                phone,
+                otp,
+                otpExpires
             })
         };
         if (role === 'admin'){
@@ -68,11 +88,31 @@ exports.register = async ( req, res) => {
                 password: hashedPassword,
                 role,
                 gender,
-                phone
+                phone,
+                otp,
+                otpExpires
             })
         };
 
         await user.save();
+
+        //send OTP email
+        const mailOptions = {
+            from: process.env.EMAIL,
+            to: email,
+            subject: 'Library Management System OTP',
+            text: `Your OTP is ${otp}`
+        };
+
+        transporter.sendMail(mailOptions, (err, info) => {
+            if (err) {
+                console.log('Error sending email', err);
+            } else {
+                console.log('Email sent: ' + info.response);
+            }
+        });
+
+
         res.status(201).json({
             status: 'success',
             message: 'User registered successfully',
@@ -140,3 +180,38 @@ exports.login = async (req, res) => {
         })
     }
 }
+
+
+exports.verifyOtp = async (req, res) => {
+    const { email, otp } = req.body;
+
+    try {
+        let user = await User.findOne({ email });
+        if (!user) user = await Librarian.findOne({ email });
+        if (!user) user = await Admin.findOne({ email });
+
+        if (!user) {
+            return res.status(400).json({ status: 'failed', message: 'User not found' });
+        }
+
+        if (user.otp !== otp || user.otpExpires < Date.now()) {
+            return res.status(400).json({ status: 'failed', message: 'Invalid or expired OTP' });
+        }
+
+        user.otp = undefined;
+        user.otpExpires = undefined;
+        await user.save();
+
+        res.status(200).json({
+            status: 'success',
+            message: 'OTP verified successfully',
+            data: user
+        });
+    } catch (err) {
+        console.log('Error verifying OTP', err);
+        res.status(500).json({
+            status: 'failed',
+            message: 'Internal server error'
+        });
+    }
+};
