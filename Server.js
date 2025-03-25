@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const cors = require('cors');
 
+// Loading the enviroment 
 dotenv.config();
 const port = process.env.PORT || 3000
 const mongodb = process.env.MONGODB;
